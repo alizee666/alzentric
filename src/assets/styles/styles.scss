@@ -1,0 +1,7 @@
+@import '~grommet/scss/hpe/index';
+@import '~grommet-index/scss/grommet-index/index';
+
+// TODO: Remove on next release of grommet
+.grommetux-menu__drop .grommetux-anchor__icon {
+  height: inherit;
+}
