@@ -1,0 +1,180 @@
+# DO NOT TOUCH OR MODIFY THIS FILE!!
+# Making changes to this file will only allow to handle your
+# build process, but this file mimics how the PA/VA Build Process
+# works. Modifying it will only solve your problems locally, but
+# you'll still make the build not compile.
+
+workspace:
+  path: /go/src/github.hpe.com/hcoe/ui.git
+  base: /go
+
+
+pipeline:
+  clone:
+    image: plugins/git
+    tags: true
+    depth: 50
+    recursive: true
+
+  qualify:
+    image: node:6.10.0
+    commands:
+      - npm config set proxy=http://web-proxy.houston.hpecorp.net:8080/
+      - npm config set https-proxy=http://web-proxy.houston.hpecorp.net:8080/
+      - yarn install
+      - npm test -- -- --coverage
+      - find ./node_modules -name lcov.info -exec rm {} \;
+      - echo done
+
+  release:
+    image: node:6.10.0
+    commands:
+      - git config --global user.email "hellfire-app@hpe.com"
+      - git config --global user.name "Hellfire-app"
+      - git fetch
+      - env
+      - git checkout preRelease
+      - git checkout dev
+      - git merge preRelease -s ours
+      - git checkout preRelease
+      - git merge dev
+      - git push origin preRelease
+      - git checkout dev
+      - git describe --abbrev=0 --tags > ../version.txt
+      - export VERSION=$(cat ../version.txt)
+#      - export VERSION=$(npm list | grep ui | sed -e 's/.*@\(.*\) .*/\1/')
+      - export newVersion=$(npm version patch --no-git-tag-version | sed -e 's/v//g')
+#      - sed -i -e "s/<version>$VERSION/<version>$newVersion/g" pom.xml
+      - echo $VERSION => $newVersion
+      - git add package.json
+      - git commit -m "Prepare for next release - $VERSION"
+      - git push origin dev
+    when:
+        event: tag
+
+  publish_nexus:
+    image: node:6.10.0
+    commands:
+      - git checkout preRelease
+      - npm config set proxy=http://web-proxy.houston.hpecorp.net:8080/
+      - npm config set https-proxy=http://web-proxy.houston.hpecorp.net:8080/
+      - export VERSION=$(cat ../version.txt)
+      - echo "Publishing Nexus ui version "+$VERSION
+      - yarn install
+      - ./node_modules/.bin/gulp dist
+      - mkdir hcoe-ui
+      - cp -p package.json hcoe-ui/package.json
+      - cp -Rp dist hcoe-ui
+      - cp -Rp server hcoe-ui
+      - tar -czvf hcoe-ui.tar.gz hcoe-ui
+      - |-
+        curl -u "5fhB/G4H:gAWD5bYUDioJaCbHZ4p12zcCKvP75QWkMQ85W4Dx3HD+" -i -X POST -H "Content-Type: application/zip" --data-binary @hcoe-ui.tar.gz https://nexus-int.austin.hpecorp.net/nexus/content/repositories/HPINT-release1-M2/com/hpe/hcoe/ui/$VERSION/hcoe-ui.tar.gz
+    when:
+        event: tag
+
+  prepare_docker:
+    image: node
+    commands:
+      - export VERSION=$(cat ../version.txt)
+      - rm -rf dist
+      - rm -rf *.zip*
+      - rm -rf *.tar.gz*
+      - echo "Downloading ui:$VERSION from Nexus"
+      - |-
+        curl -u "5fhB/G4H:gAWD5bYUDioJaCbHZ4p12zcCKvP75QWkMQ85W4Dx3HD+" -O https://nexus-int.austin.hpecorp.net/nexus/content/repositories/HPINT-release1-M2/com/hpe/hcoe/ui/$VERSION/hcoe-ui.tar.gz
+      - tar -xzvf hcoe-ui.tar.gz --strip-components=1 hcoe-ui/dist
+      - mkdir -p dist/docs
+      - |-
+        export NexusIEVersion=$(git ls-remote --tags https://github.hpe.com/hcoe/ie | awk '{print $2}' | grep -v '{}' | awk -F"/" '{print $3}' | sort -t. -k 1,1n -k 2,2n -k 3,3n | tail -n 1)
+      - echo "Downloading IE docs:$NexusIEVersion from Nexus"
+      - |-
+        curl -u "5fhB/G4H:gAWD5bYUDioJaCbHZ4p12zcCKvP75QWkMQ85W4Dx3HD+" -O https://nexus-int.austin.hpecorp.net/nexus/content/repositories/HPINT-release1-M2/com/hpe/hcoe/ie/$NexusIEVersion/hcoe-ie.tar.gz
+      - tar -xzvf hcoe-ie.tar.gz -C dist/docs
+      - mkdir -p dist/vmrc
+      - |-
+        export VMRC_VERSION=$(git ls-remote --tags https://github.hpe.com/hcoe/vmware-rc | awk '{print $2}' | grep -v '{}' | awk -F"/" '{print $3}' | sort -t. -k 1,1n -k 2,2n -k 3,3n | tail -n 1)
+      - echo "Downloading vmware-rc:$VMRC_VERSION from Nexus"
+      - |-
+        curl -u "5fhB/G4H:gAWD5bYUDioJaCbHZ4p12zcCKvP75QWkMQ85W4Dx3HD+" -O https://nexus-int.austin.hpecorp.net/nexus/content/repositories/HPINT-release1-M2/com/hpe/hcoe/vmware-rc/$VMRC_VERSION/hcoe-vmware-rc.tar.gz
+      - tar -xvzf hcoe-vmware-rc.tar.gz -C dist/vmrc
+      - mkdir -p dist/api
+      - |-
+        export SWAGGER_CORE_VERSION="20161220"
+      - echo "Downloading swagger-core Version:$SWAGGER_CORE_VERSION from Nexus"
+      - |-
+        curl -u "5fhB/G4H:gAWD5bYUDioJaCbHZ4p12zcCKvP75QWkMQ85W4Dx3HD+" -O https://nexus-int.austin.hpecorp.net/nexus/content/repositories/HPINT-release1-M2/com/hpe/hcoe/swagger/swagger-core/$SWAGGER_CORE_VERSION/swagger_dist_$SWAGGER_CORE_VERSION.tar.gz
+      - tar -xvzf swagger_dist_$SWAGGER_CORE_VERSION.tar.gz -C dist/api
+      - |-
+        export SWAGGER_JSON_VERSION=$(git ls-remote --tags https://github.hpe.com/hcoe/hcm | awk '{print $2}' | grep -v '{}' | awk -F"/" '{print $3}' | sort -t. -k 1,1n -k 2,2n -k 3,3n | tail -n 1)
+      - echo "Downloading swagger-json Version:$SWAGGER_JSON_VERSION from Nexus"
+      - |-
+        curl -u "5fhB/G4H:gAWD5bYUDioJaCbHZ4p12zcCKvP75QWkMQ85W4Dx3HD+" -O https://nexus-int.austin.hpecorp.net/nexus/content/repositories/HPINT-release1-M2/com/hpe/hcoe/swagger/swagger-json/$SWAGGER_JSON_VERSION/swagger-json-$SWAGGER_JSON_VERSION.tar.gz
+      - tar -xvzf swagger-json-$SWAGGER_JSON_VERSION.tar.gz -C dist/api
+      - mkdir -p dist/cli
+      - |-
+        export CLI_VERSION=$(git ls-remote --tags https://github.hpe.com/hcoe/cli | awk '{print $2}' | grep -v '{}' | awk -F"/" '{print $3}' | sort -t. -k 1,1n -k 2,2n -k 3,3n | tail -n 1)
+      - echo "Downloading CLI Version:$CLI_VERSION from Nexus"
+      - |-
+        curl -u "5fhB/G4H:gAWD5bYUDioJaCbHZ4p12zcCKvP75QWkMQ85W4Dx3HD+" -O https://nexus-int.austin.hpecorp.net/nexus/content/repositories/HPINT-release1-M2/com/hpe/hcoe/cli/dist/$CLI_VERSION/cli-$CLI_VERSION.tar.gz
+      - tar -xvzf cli-$CLI_VERSION.tar.gz -C dist/cli
+      - echo "Renaming hcoe to hcoe.bin"
+      - mv dist/cli/hcoe dist/cli/hcoe.bin
+    when:
+      event: tag
+
+  docker:
+    image: plugins/docker
+    privileged: true
+    insecure: true
+    storage_driver: overlay
+    registry: https://hub.docker.hpecorp.net
+    repo: hub.docker.hpecorp.net/hcoe/hcoe-ui
+    tag:
+      - ${DRONE_TAG}
+      - latest
+    username: hellfiredocker
+    password: Hellfire2016
+    email: hf-boon-team@hpe.com
+    when:
+      event: tag
+
+  deploy:
+    image: hub.docker.hpecorp.net/synergy/golang:1.6
+    commands:
+      - export VERSION=$(cat ../version.txt)
+      - sshpass -p 'ovbu2003' scp -oStrictHostKeyChecking=no deploy.sh root@16.71.84.1:/root/.
+      - sshpass -p 'ovbu2003' ssh -oStrictHostKeyChecking=no root@16.71.84.1 /root/deploy.sh $VERSION
+    when:
+        event: tag
+
+  promote:
+    image: node
+    commands:
+      - git config --global user.email "hellfire-app@hpe.com"
+      - git config --global user.name "Hellfire-app"
+      - git fetch
+      - git checkout preRelease
+      - export CONTAINER=ui
+      - export VERSION=$(cat ../version.txt)
+      - git clone https://github.hpe.com/hcoe/pa.git
+      - cd pa
+      - git checkout promote
+#      - sed -i -e "s/$CONTAINER\(.*\),/$CONTAINER": "$VERSION",/g" versions.json
+      - /usr/bin/perl -i -pe 's/("$ENV{"CONTAINER"}":)[^,\n]*(,*)/$1 "$ENV{"VERSION"}"$2/' versions.json
+      - cat versions.json
+      - git add versions.json
+      - git commit --allow-empty -m "Promote ui@$VERSION"
+      - git push origin promote
+    when:
+        event: tag
+
+  coverage:
+    image: plugins/coverage
+    environment:
+      - GITHUB_TOKEN=61fd12f02f1a445a6e1a36716a41f7d48bcf9dd0
+    server: http://hellfiredrone.ftc.hpeswlab.net
+    token: 61fd12f02f1a445a6e1a36716a41f7d48bcf9dd0
+    include: lcov.info
+    must_increase: true
+    when:
+      event: [push, pull_request, tag]
