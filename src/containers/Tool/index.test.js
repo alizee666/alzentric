@@ -4,7 +4,7 @@ import { shallow } from 'enzyme';
 import { spy } from 'sinon';
 import { fromJS } from 'immutable';
 
-import { Tool } from './';
+import { Tool, stateToProps } from './';
 
 let props;
 
@@ -30,6 +30,11 @@ beforeEach(() => {
 describe('Tool Main container', () => {
   it('Renders Tool', () => {
     const wrapper = shallow(<Tool {...props} />);
-    expect(wrapper.find('Split').length).toEqual(0);
+    expect(wrapper.find('Split').length).toEqual(1);
   });
+});
+
+it('maps from redux state', () => {
+  const state = stateToProps(fromJS({ tool: 'Value' }));
+  expect(Object.keys(state)).toEqual(['tool']);
 });
