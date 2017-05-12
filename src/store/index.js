@@ -8,6 +8,7 @@ import ReduxDevTools from 'ReduxDevTools';
 import createSagaMiddleware from 'redux-saga';
 import { routerMiddleware } from 'react-router-redux';
 
+import rootSaga from 'modules/sagas';
 import reducers from 'modules';
 
 import {
@@ -41,5 +42,7 @@ if (module.hot) {
     store.replaceReducer(nextReducer);
   });
 }
+
+sagaMiddleware.run(rootSaga);
 
 export default store;
