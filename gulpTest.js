@@ -45,4 +45,12 @@ module.exports = function gulpTests(gulp) {
   gulp.task('jest:changed', (cb) => {
     scriptRunner('Jest')('npm', ['run', '-s', 'jest', '--', '-o'], cb);
   });
+
+  gulp.task('jslint:server', (cb) => {
+    scriptRunner('Server Lint')(gulpBin, ['jslint'], cb, { cwd: './server' });
+  });
+
+  gulp.task('test:server', ['jslint:server'], (cb) => {
+    scriptRunner('Server Tests')(gulpBin, ['test'], cb, { cwd: './server' });
+  });
 };

@@ -1,0 +1,22 @@
+.element-nav-logo {
+  &.left {
+    position: absolute;
+    margin: 0;
+    top: 25px;
+    left: 35px;
+  }
+
+  .logo-title {
+    margin: 0;
+    font-size: 22px;
+
+    &.primary-title {
+      margin: 0;
+    }
+  }
+
+  .label {
+    margin-left: 5px;
+    font-weight: 300;
+  }
+}

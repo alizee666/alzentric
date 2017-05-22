@@ -1,0 +1,17 @@
+.dashboard-sidebar {
+  .grommetux-menu--primary > a.link {
+    padding-left: 40px;
+  }
+
+  .grommetux-control-icon.grommetux-control-icon-close path {
+    stroke: #FFF;
+  }
+
+  .grommetux-title {
+    padding-left: 10px;
+  }
+
+  .grommetux-box {
+    flex-shrink: 0;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "parser": "babel-eslint",
+  "extends": "../.eslintrc",
+  "rules": {
+    "comma-dangle": [2, { "functions": "never", "arrays": "always-multiline", "objects": "always-multiline" }],
+    "no-console": 0 // http://eslint.org/docs/rules/no-console#when-not-to-use-it
+  }
+}
