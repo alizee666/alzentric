@@ -9,6 +9,7 @@ import { formatRoutes } from 'utils';
 import App from 'grommet/components/App';
 import Split from 'grommet/components/Split';
 
+import SidebarNav from 'components/SidebarNav';
 import { main as actions } from './module';
 import messages from './messages';
 
@@ -49,10 +50,28 @@ export class Main extends Component {
     };
 
     return (
-      <App centered={true}>
-        <div>
-          Calculator
-        </div>
+      <App centered={false}>
+        <Split
+          fixed
+          flex="right"
+          priority="right"
+        >
+
+          {isVisible &&
+            <SidebarNav
+              isLogo={isVisible}
+              routes={routes}
+              bgColor="neutral-1"
+              className="dashboard-sidebar"
+              toggleSidebar={onSidebarToggle}
+              title={{
+                main: intl.formatMessage(messages.MyApp, { APP_NAME: process.env.APP_NAME }),
+                sub: '',
+              }}
+            />
+          }
+          {children}
+        </Split>
       </App>
     );
   }

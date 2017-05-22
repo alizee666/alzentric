@@ -14,6 +14,11 @@ import {
   toolSagas,
 } from 'containers/Tool/module';
 
+import {
+  toolCalculatorSagas,
+} from 'containers/Tool/Calculator/module';
+
+
 export default function* root() {
   yield [
     // main
@@ -21,5 +26,7 @@ export default function* root() {
 
     // tool
     fork(toolSagas),
+    fork(toolCalculatorSagas),
+
   ];
 }

@@ -1,5 +1,5 @@
 {
-  "name": "application",
+  "name": "calculator",
   "version": "0.0.1",
   "repository": {
     "type": "git",
@@ -133,11 +133,13 @@
     "bundle": "sh ./lib/bundle_docs.sh",
     "pack": "sh ./lib/pack.sh",
     "start": "cross-env NODE_ENV=production nodemon server/index.js",
-    "test": "npm run lint && npm run jest",
-    "lint": "npm run linter",
+    "test": "npm run lint && npm run server-test && npm run jest",
+    "lint": "npm run linter && npm run linter-server",
     "linter": "eslint --config .eslintrc src/",
+    "linter-server": "eslint --config server/.eslintrc server/",
     "tapetest": "cross-env NODE_PATH=src NODE_ENV=test babel-node src/tests/index.js | tap-spec",
     "watch": "npm-watch",
+    "server-test": "cd server && cross-env NODE_ENV=test tape test/*.spec.js | tap-spec",
     "jest": "cross-env NODE_ENV=test NODE_PATH=src jest"
   }
 }
